@@ -15,8 +15,8 @@ const Navbar = ({ activeSection, setActiveSection, currentUser, userData, onAuth
     checkApiConfiguration();
   }, []);
 
-  const checkApiConfiguration = async () => {
-    const apiUrl = await getCurrentApiUrl();
+  const checkApiConfiguration = () => {
+    const apiUrl = getCurrentApiUrl();
     setApiConfigured(!!apiUrl);
   };
 

@@ -145,7 +145,7 @@ const App = () => {
 
   // Show auth modal if not logged in and trying to access content
   useEffect(() => {
-    if (!authLoading && !currentUser && activeSection !== 'admin' && activeSection !== 'scienceandfun') {
+    if (!authLoading && !currentUser && activeSection !== 'admin') {
       setShowAuthModal(true);
     }
   }, [authLoading, currentUser, activeSection]);
@@ -186,15 +186,15 @@ const App = () => {
       );
     }
 
-    // Require login for restricted sections
-    if (!currentUser && (activeSection === 'leaderboard' || activeSection === 'profile')) {
+    // Require login for all sections except admin
+    if (!currentUser && activeSection !== 'admin') {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
           <div className="text-center max-w-md mx-auto px-4">
             <div className="text-6xl mb-6">🔒</div>
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Login Required</h2>
             <p className="text-gray-600 mb-8">
-              Please sign in to access this feature, earn XP, and compete on the leaderboard!
+              Please sign in to access courses, earn XP, and compete on the leaderboard!
             </p>
             <button
               onClick={() => setShowAuthModal(true)}
@@ -207,8 +207,8 @@ const App = () => {
       );
     }
 
-    // Block content access if class not selected (only for logged in users)
-    if (currentUser && userData && !userData.class && activeSection !== 'admin' && activeSection !== 'scienceandfun') {
+    // Block content access if class not selected
+    if (currentUser && userData && !userData.class && activeSection !== 'admin') {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
           <div className="text-center max-w-md mx-auto px-4">

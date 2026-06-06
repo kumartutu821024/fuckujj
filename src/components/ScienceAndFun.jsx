@@ -65,6 +65,40 @@ const ScienceAndFun = () => {
     );
   }
 
+  if (!getCurrentApiUrl()) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            {/* Sad emoji animation */}
+            <div className="text-8xl mb-6 animate-bounce">😔</div>
+
+            {/* Error message */}
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Sorry for the Inconvenience!
+            </h2>
+            <p className="text-lg text-gray-600 mb-6">
+              Server is temporarily down. Please try again later.
+            </p>
+
+            {/* Retry button */}
+            <button
+              onClick={loadBatches}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-full font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+            >
+              🔄 Try Again
+            </button>
+
+            {/* Additional info */}
+            <p className="text-sm text-gray-500 mt-6">
+              If the problem persists, please contact support
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

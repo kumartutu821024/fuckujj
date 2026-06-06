@@ -36,9 +36,6 @@ const loadApiUrlFromFirebase = async () => {
       // Use fallback if not set in Firebase
       BASE_URL = DEFAULT_BASE_URL;
       console.log('ℹ️ Using fallback API Base URL:', BASE_URL);
-
-      // Optionally save the fallback to Firebase if you are admin
-      // But we'll leave that to the admin panel
     }
 
     apiUrlCache = BASE_URL;
@@ -102,11 +99,15 @@ export const getCurrentApiUrl = async () => {
   return BASE_URL;
 };
 
+// Async version for initialization
+export const fetchCurrentApiUrl = async () => {
+  return await loadApiUrlFromFirebase();
+};
+
 // Validate that BASE_URL is configured
 const validateBaseUrl = () => {
   if (!BASE_URL || BASE_URL.trim() === '') {
-    // If empty, try to use fallback immediately
-    BASE_URL = DEFAULT_BASE_URL;
+    BASE_URL = apiUrlCache || DEFAULT_BASE_URL;
   }
 };
 
@@ -164,10 +165,6 @@ const secureFetch = async (url, useCache = true) => {
     return response.data;
   } catch (error) {
     console.error('❌ API Request Failed:', error.message);
-
-    // If it's a 404 or other error from proxy, maybe retry once without proxy?
-    // No, proxy is usually needed for CORS.
-
     throw new Error('Unable to load content. Please try again later.');
   }
 };
@@ -178,49 +175,60 @@ const secureFetch = async (url, useCache = true) => {
 
 // Get all batches/courses
 export const getBatches = async () => {
-  await getCurrentApiUrl(); // Ensure BASE_URL is loaded
+  await fetchCurrentApiUrl();
   const url = `${BASE_URL}/batches`;
   return await secureFetch(url);
 };
 
 // Get content root for a batch
 export const getContentRoot = async (batchId) => {
-  await getCurrentApiUrl();
+  await fetchCurrentApiUrl();
   const url = `${BASE_URL}/content?course_id=${batchId}`;
   return await secureFetch(url);
 };
 
 // Get folder content (recursive)
 export const getFolderContent = async (batchId, folderId) => {
-  await getCurrentApiUrl();
+  await fetchCurrentApiUrl();
   const url = `${BASE_URL}/content?course_id=${batchId}&parent_id=${folderId}`;
   return await secureFetch(url);
 };
 
 // Get video details with streaming URL
 export const getVideoDetails = async (videoId, batchId) => {
-  await getCurrentApiUrl();
-  const url = `${BASE_URL}/video-details?video_id=${videoId}&course_id=${batchId}`;
-  return await secureFetch(url);
+  await fetchCurrentApiUrl();
+
+  // Try /video first as it's more standard for the new server
+  try {
+    const url = `${BASE_URL}/video?video_id=${videoId}&course_id=${batchId}`;
+    const res = await secureFetch(url);
+    if (res && (res.data || res.video_url || res.url)) return res;
+  } catch (e) {
+    console.warn('❌ /video failed, trying /video-details...');
+  }
+
+  // Try /video-details as fallback
+  const fallbackUrl = `${BASE_URL}/video-details?video_id=${videoId}&course_id=${batchId}`;
+  return await secureFetch(fallbackUrl);
 };
 
 // Get live and upcoming classes
 export const getLiveClasses = async (batchId) => {
-  await getCurrentApiUrl();
+  await fetchCurrentApiUrl();
   const url = `${BASE_URL}/live?course_id=${batchId}`;
   return await secureFetch(url);
 };
 
 // Get previous live classes
 export const getPreviousLiveClasses = async (batchId) => {
-  await getCurrentApiUrl();
+  await fetchCurrentApiUrl();
   const url = `${BASE_URL}/previous-live?course_id=${batchId}`;
   return await secureFetch(url);
 };
 
 // Get PDF/attachment URL
 export const getAttachmentUrl = async (attachmentId, batchId) => {
-  await getCurrentApiUrl();
+  await fetchCurrentApiUrl();
   const url = `${BASE_URL}/attachment?id=${attachmentId}&course_id=${batchId}`;
   return await secureFetch(url);
 };
@@ -234,7 +242,7 @@ export { buildVideoUrl, normalizeUrl, appendQueryParam };
 
 // Fetch all content recursively for a batch
 export const fetchAllBatchContent = async (batchId) => {
-  validateBaseUrl();
+  await getCurrentApiUrl();
   
   console.log(`📦 Fetching all content for batch ${batchId}...`);
   
