@@ -41,17 +41,17 @@ const PlayerPage = () => {
 
       const response = await getVideoDetails(video_id, course_id);
 
-      if (!response?.data) {
+      if (!response?.data && !response?.url && !response?.video_url) {
         throw new Error('SYSTEM FAILURE: NO DATA RECEIVED');
       }
-      
-      const data = response.data;
+
+      const data = response.data || response;
 
       setVideoInfo({
         title: data.title || data.Title || 'UNKNOWN_OBJECT',
         duration: data.duration || data.video_duration || '00:00',
         playerUrl: data.video_player_url || data.player_url || data.url || '',
-        token: data.video_player_token || data.token || ''
+        token: data.video_player_token || data.token || data.key || ''
       });
 
     } catch (err) {
@@ -74,7 +74,7 @@ const PlayerPage = () => {
 
       // 2. Extract specific quality URL and token
       let playerUrl = data.video_player_url || data.player_url || data.url || videoInfo.playerUrl;
-      let token = data.video_player_token || data.token || videoInfo.token;
+      let token = data.video_player_token || data.token || data.key || videoInfo.token;
 
       // 3. Build final encrypted URL
       let finalUrl = buildVideoUrl(playerUrl, token);

@@ -3,7 +3,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const { url } = req.query;
-      
+
       if (!url) {
         return res.status(400).json({ error: 'URL parameter is required' });
       }
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
         }
         throw new Error(`API responded with status: ${response.status}`);
       }
-      
+
       let data;
       try {
         data = await response.json();
@@ -56,14 +56,14 @@ export default async function handler(req, res) {
         console.error('🔥 Response text:', text.substring(0, 200));
         throw new Error('Invalid JSON response');
       }
-      
+
       console.log('✅ Proxy API successful, data keys:', Object.keys(data));
-      
+
       // 🔍 DEBUG: Log video-details response
       if (decodedUrl.includes('video-details')) {
         console.log('🔍 Video details response:', JSON.stringify(data, null, 2).substring(0, 500));
       }
-      
+
       // Set CORS headers
       res.setHeader('Access-Control-Allow-Credentials', true);
       res.setHeader('Access-Control-Allow-Origin', '*');
@@ -76,17 +76,17 @@ export default async function handler(req, res) {
       console.error('🔥 Proxy API error:', error.message);
       console.error('🔥 Error stack:', error.stack);
       console.error('🔥 Request URL:', req.query.url);
-      
+
       // Return error instead of mock data for debugging
       res.setHeader('Access-Control-Allow-Credentials', true);
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
       res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
-      
-      return res.status(500).json({ 
-        error: 'Proxy Error', 
+
+      return res.status(500).json({
+        error: 'Proxy Error',
         message: error.message,
-        url: req.query.url 
+        url: req.query.url
       });
     }
   } else if (req.method === 'OPTIONS') {
