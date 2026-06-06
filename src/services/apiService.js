@@ -1,16 +1,17 @@
 import axios from 'axios';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import { buildVideoUrl, normalizeUrl, appendQueryParam } from '../utils/urlUtils';
 
 // ============================================
 // CENTRALIZED API CONFIGURATION
-// API URL fetched from: https://apiserver-all.vercel.app/api/scienceandfun/api-url
-// The returned base URL gets /api/scienceandfun appended automatically
+// API URL is now stored in Firebase Firestore for persistence
+// Falls back to a reliable default if not set
 // ============================================
 
-const API_URL_SOURCE = 'https://apiserver-all.vercel.app/api/scienceandfun/api-url';
-const API_PATH_SUFFIX = '/api/scienceandfun';
+const DEFAULT_BASE_URL = 'https://apiserver-skpg.onrender.com/api/scienceandfun';
 
-// API Base URL - loaded from remote endpoint
+// API Base URL - loaded from Firebase
 let BASE_URL = '';
 
 // Cache
@@ -18,49 +19,74 @@ let apiUrlCache = null;
 let apiUrlCacheTime = 0;
 const API_URL_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-const loadApiUrlFromRemote = async () => {
+const loadApiUrlFromFirebase = async () => {
   try {
     // Return cached value if fresh
     if (apiUrlCache && Date.now() - apiUrlCacheTime < API_URL_CACHE_DURATION) {
-      console.log('✅ API Base URL loaded from cache:', apiUrlCache);
       return apiUrlCache;
     }
 
-    const res = await fetch(API_URL_SOURCE);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    if (!json?.url) throw new Error('No url field in response');
+    console.log('📡 Loading API URL from Firebase...');
+    const configDoc = await getDoc(doc(db, 'settings', 'apiConfig'));
 
-    // Append /api/scienceandfun to the returned base URL
-    const rawUrl = json.url.replace(/\/$/, ''); // strip trailing slash
-    BASE_URL = rawUrl + API_PATH_SUFFIX;
+    if (configDoc.exists() && configDoc.data().baseUrl) {
+      BASE_URL = configDoc.data().baseUrl.replace(/\/$/, '');
+      console.log('✅ API Base URL loaded from Firebase:', BASE_URL);
+    } else {
+      // Use fallback if not set in Firebase
+      BASE_URL = DEFAULT_BASE_URL;
+      console.log('ℹ️ Using fallback API Base URL:', BASE_URL);
+
+      // Optionally save the fallback to Firebase if you are admin
+      // But we'll leave that to the admin panel
+    }
+
     apiUrlCache = BASE_URL;
     apiUrlCacheTime = Date.now();
-    console.log('✅ API Base URL loaded:', BASE_URL);
     return BASE_URL;
   } catch (error) {
-    console.error('❌ Error loading API URL:', error);
-    return apiUrlCache || '';
+    console.error('❌ Error loading API URL from Firebase:', error);
+    // Ultimate fallback
+    BASE_URL = apiUrlCache || DEFAULT_BASE_URL;
+    return BASE_URL;
   }
 };
 
 // Initialize on module load (browser only)
 if (typeof window !== 'undefined') {
-  loadApiUrlFromRemote();
+  loadApiUrlFromFirebase();
 }
 
-// Update BASE_URL in memory only (read-only remote source)
+// Update BASE_URL in Firebase (Admin only)
 export const updateApiUrl = async (newUrl) => {
   if (!newUrl || typeof newUrl !== 'string') {
     throw new Error('Invalid API URL');
   }
+
   try {
     new URL(newUrl);
   } catch (e) {
-    throw new Error('Invalid URL format');
+    throw new Error('Invalid URL format. Must start with http:// or https://');
   }
-  BASE_URL = newUrl.trim();
-  console.log('✅ API Base URL updated in memory:', BASE_URL);
+
+  const cleanUrl = newUrl.trim().replace(/\/$/, '');
+
+  try {
+    await setDoc(doc(db, 'settings', 'apiConfig'), {
+      baseUrl: cleanUrl,
+      updatedAt: new Date().toISOString(),
+      updatedBy: 'admin'
+    });
+
+    BASE_URL = cleanUrl;
+    apiUrlCache = cleanUrl;
+    apiUrlCacheTime = Date.now();
+    console.log('✅ API Base URL updated in Firebase:', BASE_URL);
+    return true;
+  } catch (error) {
+    console.error('❌ Error saving API URL to Firebase:', error);
+    throw new Error('Failed to save to Firebase: ' + error.message);
+  }
 };
 
 // Get current BASE_URL
@@ -72,19 +98,20 @@ export const getCurrentApiUrl = async () => {
     return BASE_URL;
   }
 
-  BASE_URL = await loadApiUrlFromRemote();
+  BASE_URL = await loadApiUrlFromFirebase();
   return BASE_URL;
 };
 
 // Validate that BASE_URL is configured
 const validateBaseUrl = () => {
   if (!BASE_URL || BASE_URL.trim() === '') {
-    throw new Error('Service temporarily unavailable. Please try again later.');
+    // If empty, try to use fallback immediately
+    BASE_URL = DEFAULT_BASE_URL;
   }
 };
 
 const apiClient = axios.create({
-  timeout: 10000, // Reduced to 10 seconds for faster failure
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   }
@@ -92,7 +119,7 @@ const apiClient = axios.create({
 
 // Aggressive cache for API responses
 const cache = new Map();
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes (increased from 5)
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
 // Get from cache if available and not expired
 const getFromCache = (key) => {
@@ -112,25 +139,10 @@ const saveToCache = (key, data) => {
   });
 };
 
-// Security: Validate that request URL matches configured BASE_URL
-const validateRequestUrl = (url) => {
-  validateBaseUrl();
-  
-  if (!url.startsWith(BASE_URL)) {
-    throw new Error(`Security Error: Request URL does not match configured Base URL. Expected: ${BASE_URL}`);
-  }
-  
-  return true;
-};
-
-// Centralized API fetch with security validation and caching
+// Centralized API fetch with caching
 const secureFetch = async (url, useCache = true) => {
-  // Validate BASE_URL is configured
   validateBaseUrl();
-  
-  // Validate request URL matches BASE_URL
-  validateRequestUrl(url);
-  
+
   // Check cache first
   if (useCache) {
     const cached = getFromCache(url);
@@ -152,11 +164,10 @@ const secureFetch = async (url, useCache = true) => {
     return response.data;
   } catch (error) {
     console.error('❌ API Request Failed:', error.message);
-    console.error('❌ Full error:', error.response?.data || error);
-    console.error('❌ Status:', error.response?.status);
-    console.error('❌ URL was:', url);
-    
-    // Generic error - don't expose technical details to users
+
+    // If it's a 404 or other error from proxy, maybe retry once without proxy?
+    // No, proxy is usually needed for CORS.
+
     throw new Error('Unable to load content. Please try again later.');
   }
 };
@@ -167,42 +178,49 @@ const secureFetch = async (url, useCache = true) => {
 
 // Get all batches/courses
 export const getBatches = async () => {
+  await getCurrentApiUrl(); // Ensure BASE_URL is loaded
   const url = `${BASE_URL}/batches`;
   return await secureFetch(url);
 };
 
 // Get content root for a batch
 export const getContentRoot = async (batchId) => {
+  await getCurrentApiUrl();
   const url = `${BASE_URL}/content?course_id=${batchId}`;
   return await secureFetch(url);
 };
 
 // Get folder content (recursive)
 export const getFolderContent = async (batchId, folderId) => {
+  await getCurrentApiUrl();
   const url = `${BASE_URL}/content?course_id=${batchId}&parent_id=${folderId}`;
   return await secureFetch(url);
 };
 
 // Get video details with streaming URL
 export const getVideoDetails = async (videoId, batchId) => {
+  await getCurrentApiUrl();
   const url = `${BASE_URL}/video-details?video_id=${videoId}&course_id=${batchId}`;
   return await secureFetch(url);
 };
 
 // Get live and upcoming classes
 export const getLiveClasses = async (batchId) => {
+  await getCurrentApiUrl();
   const url = `${BASE_URL}/live?course_id=${batchId}`;
   return await secureFetch(url);
 };
 
 // Get previous live classes
 export const getPreviousLiveClasses = async (batchId) => {
+  await getCurrentApiUrl();
   const url = `${BASE_URL}/previous-live?course_id=${batchId}`;
   return await secureFetch(url);
 };
 
 // Get PDF/attachment URL
 export const getAttachmentUrl = async (attachmentId, batchId) => {
+  await getCurrentApiUrl();
   const url = `${BASE_URL}/attachment?id=${attachmentId}&course_id=${batchId}`;
   return await secureFetch(url);
 };
