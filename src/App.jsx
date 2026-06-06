@@ -143,11 +143,9 @@ const App = () => {
     }
   }, [currentUser]);
 
-  // Show auth modal if not logged in and trying to access restricted content
+  // Show auth modal only if explicitly needed (e.g. admin restricted parts)
   useEffect(() => {
-    if (!authLoading && !currentUser && (activeSection === 'leaderboard' || activeSection === 'profile')) {
-      setShowAuthModal(true);
-    }
+    // Auth modal is now only triggered by specific actions, not auto-shown for content
   }, [authLoading, currentUser, activeSection]);
 
   const handleClassSelected = async (selectedClass) => {
@@ -245,7 +243,10 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-black font-mono selection:bg-[#00FF00] selection:text-black">
+      {/* Scanline Effect Overlay */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-[9999] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]"></div>
+
       <Navbar 
         activeSection={activeSection} 
         setActiveSection={setActiveSection}

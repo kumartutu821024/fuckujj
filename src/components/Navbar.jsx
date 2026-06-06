@@ -2,10 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { getCurrentApiUrl } from '../services/apiService';
 import { signOut } from '../services/authService';
 
-// ============================================
-// NAVBAR WITH AUTH & LEADERBOARD
-// ============================================
-
 const Navbar = ({ activeSection, setActiveSection, currentUser, userData, onAuthClick }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [apiConfigured, setApiConfigured] = useState(false);
@@ -15,13 +11,9 @@ const Navbar = ({ activeSection, setActiveSection, currentUser, userData, onAuth
     checkApiConfiguration();
   }, []);
 
-  const checkApiConfiguration = () => {
-    const apiUrl = getCurrentApiUrl();
+  const checkApiConfiguration = async () => {
+    const apiUrl = await getCurrentApiUrl();
     setApiConfigured(!!apiUrl);
-  };
-
-  const toggleMobileMenu = () => {
-    setMobileMenuOpen(!mobileMenuOpen);
   };
 
   const handleSignOut = async () => {
@@ -33,192 +25,106 @@ const Navbar = ({ activeSection, setActiveSection, currentUser, userData, onAuth
   };
 
   return (
-    <nav className="bg-white shadow-md sticky top-0 z-40">
+    <nav className="bg-black border-b border-[#00FF00]/30 sticky top-0 z-40 font-mono">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex-shrink-0">
-            <h1 className="text-2xl font-bold text-blue-600">Science & Fun</h1>
+          <div className="flex-shrink-0 flex flex-col">
+            <h1 className="text-xl font-bold text-[#00FF00] tracking-tighter flex items-center">
+              <span className="animate-pulse mr-2">{'>'}</span>
+              SF_ROOT
+            </h1>
             {!apiConfigured && (
-              <p className="text-xs text-red-500">API not configured</p>
+              <p className="text-[10px] text-red-500 animate-pulse">ERR: DISCONNECTED</p>
             )}
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4">
-            <button
-              onClick={() => setActiveSection('scienceandfun')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                activeSection === 'scienceandfun'
-                  ? 'text-blue-600 bg-blue-50'
-                  : 'text-gray-700 hover:text-blue-600'
-              }`}
-            >
-              📚 Courses
-            </button>
-            
+          <div className="hidden md:flex items-center space-x-2">
+            {[
+              { id: 'scienceandfun', label: 'COURSES.bin' },
+              { id: 'leaderboard', label: 'RANKINGS.sys', protected: true },
+              { id: 'profile', label: 'USER_PROFILE', protected: true },
+            ].map(item => (
+              (!item.protected || currentUser) && (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id)}
+                  className={`px-3 py-1 text-xs font-bold transition-all border ${
+                    activeSection === item.id
+                      ? 'bg-[#00FF00] text-black border-[#00FF00]'
+                      : 'text-[#00FF00]/70 border-transparent hover:border-[#00FF00]/50 hover:text-[#00FF00]'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              )
+            ))}
+
+            {/* User Menu - Only show if logged in, otherwise hide login buttons */}
             {currentUser && (
-              <>
-                <button
-                  onClick={() => setActiveSection('leaderboard')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                    activeSection === 'leaderboard'
-                      ? 'text-purple-600 bg-purple-50'
-                      : 'text-gray-700 hover:text-purple-600'
-                  }`}
-                >
-                  🏆 Leaderboard
-                </button>
-
-                <button
-                  onClick={() => setActiveSection('profile')}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                    activeSection === 'profile'
-                      ? 'text-green-600 bg-green-50'
-                      : 'text-gray-700 hover:text-green-600'
-                  }`}
-                >
-                  👤 Profile
-                </button>
-              </>
-            )}
-
-            {/* User Menu or Auth Button */}
-            {currentUser ? (
-              <div className="relative">
+              <div className="relative ml-4">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 transition"
+                  className="flex items-center space-x-2 px-3 py-1 border border-[#00FF00] text-[#00FF00] hover:bg-[#00FF00]/10 transition"
                 >
-                  <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center font-bold">
-                    {currentUser.email?.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-medium">{userData?.totalXP || 0} XP</p>
-                    <p className="text-xs opacity-90">{userData?.class}</p>
-                  </div>
+                  <span className="text-xs">[{currentUser.email?.charAt(0).toUpperCase()}]</span>
+                  <span className="text-[10px] opacity-70">{userData?.totalXP || 0}XP</span>
                 </button>
 
-                {/* Dropdown */}
                 {showUserMenu && (
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2">
-                    <div className="px-4 py-3 border-b border-gray-200">
-                      <p className="text-sm font-semibold text-gray-900">{currentUser.email}</p>
-                      <p className="text-xs text-gray-500">Class: {userData?.class}</p>
-                      <p className="text-xs text-purple-600 font-bold mt-1">Total XP: {userData?.totalXP || 0}</p>
+                  <div className="absolute right-0 mt-2 w-64 bg-black border border-[#00FF00] shadow-[0_0_20px_rgba(0,255,0,0.1)] py-2 text-[#00FF00]">
+                    <div className="px-4 py-3 border-b border-[#00FF00]/30 text-[10px]">
+                      <p className="mb-1">UID: {currentUser.uid.substring(0, 12)}...</p>
+                      <p className="mb-1">LVL: {userData?.class || 'GUEST'}</p>
+                      <p className="font-bold">XP_TOTAL: {userData?.totalXP || 0}</p>
                     </div>
                     <button
                       onClick={handleSignOut}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition"
+                      className="w-full text-left px-4 py-2 text-xs hover:bg-[#00FF00] hover:text-black transition"
                     >
-                      🚪 Sign Out
+                      TERMINATE_SESSION
                     </button>
                   </div>
                 )}
               </div>
-            ) : (
-              <button
-                onClick={onAuthClick}
-                className="px-6 py-2 rounded-lg bg-black text-white font-medium hover:bg-gray-800 transition"
-              >
-                Sign In
-              </button>
             )}
           </div>
 
           {/* Mobile menu button */}
           <div className="md:hidden">
             <button
-              onClick={toggleMobileMenu}
-              className="text-gray-700 hover:text-blue-600 p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="text-[#00FF00] p-2"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
+              {mobileMenuOpen ? 'CLOSE_X' : 'MENU_='}
             </button>
           </div>
         </div>
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <div className="md:hidden pb-3">
+          <div className="md:hidden pb-3 border-t border-[#00FF00]/20 mt-2">
             <div className="px-2 pt-2 space-y-1">
-              {currentUser && (
-                <div className="px-3 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg mb-2">
-                  <p className="text-sm font-semibold">{currentUser.email}</p>
-                  <p className="text-xs opacity-90">Class: {userData?.class} | XP: {userData?.totalXP || 0}</p>
-                </div>
-              )}
-
-              <button
-                onClick={() => {
-                  setActiveSection('scienceandfun');
-                  setMobileMenuOpen(false);
-                }}
-                className={`block px-3 py-2 rounded-md text-base font-medium w-full text-left ${
-                  activeSection === 'scienceandfun'
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-gray-700 hover:text-blue-600'
-                }`}
-              >
-                📚 Courses
-              </button>
-              
-              {currentUser && (
-                <>
+              {['scienceandfun', 'leaderboard', 'profile'].map(id => (
+                (id === 'scienceandfun' || currentUser) && (
                   <button
-                    onClick={() => {
-                      setActiveSection('leaderboard');
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`block px-3 py-2 rounded-md text-base font-medium w-full text-left ${
-                      activeSection === 'leaderboard'
-                        ? 'text-purple-600 bg-purple-50'
-                        : 'text-gray-700 hover:text-purple-600'
+                    key={id}
+                    onClick={() => { setActiveSection(id); setMobileMenuOpen(false); }}
+                    className={`block px-3 py-2 text-sm w-full text-left border ${
+                      activeSection === id ? 'bg-[#00FF00] text-black' : 'text-[#00FF00]/70 border-transparent'
                     }`}
                   >
-                    🏆 Leaderboard
+                    {id.toUpperCase()}
                   </button>
-
-                  <button
-                    onClick={() => {
-                      setActiveSection('profile');
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`block px-3 py-2 rounded-md text-base font-medium w-full text-left ${
-                      activeSection === 'profile'
-                        ? 'text-green-600 bg-green-50'
-                        : 'text-gray-700 hover:text-green-600'
-                    }`}
-                  >
-                    👤 Profile
-                  </button>
-                </>
-              )}
-
-              {currentUser ? (
+                )
+              ))}
+              {!currentUser && (
                 <button
-                  onClick={() => {
-                    handleSignOut();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="block px-3 py-2 rounded-md text-base font-medium w-full text-left text-red-600 hover:bg-red-50"
+                  onClick={() => { onAuthClick(); setMobileMenuOpen(false); }}
+                  className="block px-3 py-2 text-sm w-full text-left border border-[#00FF00] text-[#00FF00]"
                 >
-                  🚪 Sign Out
-                </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    onAuthClick();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="block px-3 py-2 rounded-md text-base font-medium w-full text-left bg-black text-white hover:bg-gray-800"
-                >
-                  Sign In
+                  SIGN_IN
                 </button>
               )}
             </div>

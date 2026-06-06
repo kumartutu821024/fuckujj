@@ -6,24 +6,16 @@ import { onAuthChange } from '../src/services/authService';
 
 const PlayerPage = () => {
   const router = useRouter();
-  const { course_id, video_id, isLive } = router.query;
+  const { course_id, video_id } = router.query;
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [videoInfo, setVideoInfo] = useState(null);
-  const [selectedQuality, setSelectedQuality] = useState(null);
-  const [videoUrl, setVideoUrl] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  
-  const [showQualitySelector, setShowQualitySelector] = useState(true);
 
   // XP tracking
   const {
     startTracking,
-    stopTracking,
-    xpEarned,
-    nextXpIn,
-    progress,
     isTracking
   } = useVideoWatchTracker(currentUser?.uid, video_id, course_id);
 
@@ -49,21 +41,21 @@ const PlayerPage = () => {
       const response = await getVideoDetails(video_id, course_id);
 
       if (!response?.data) {
-        throw new Error('No video data received');
+        throw new Error('SYSTEM FAILURE: NO DATA RECEIVED');
       }
       
       const data = response.data;
 
       setVideoInfo({
-        title: data.title || data.Title || 'Video',
-        duration: data.duration || data.video_duration || 'Unknown duration',
+        title: data.title || data.Title || 'UNKNOWN_OBJECT',
+        duration: data.duration || data.video_duration || '00:00',
         playerUrl: data.video_player_url || data.player_url || data.url || '',
         token: data.video_player_token || data.token || ''
       });
 
     } catch (err) {
-      console.error('❌ Error loading video:', err);
-      setError(err.message || 'Failed to load video details');
+      console.error('❌ CRITICAL ERROR:', err);
+      setError(err.message || 'LINK_FAILURE: 0x882');
     } finally {
       setLoading(false);
     }
@@ -72,143 +64,132 @@ const PlayerPage = () => {
   const handleQualitySelect = (quality) => {
     if (!videoInfo) return;
 
-    setSelectedQuality(quality);
-
     // Build final URL with token
     let finalUrl = videoInfo.playerUrl;
     if (videoInfo.token) {
       finalUrl = buildVideoUrl(videoInfo.playerUrl, videoInfo.token);
     }
 
-    // Add quality param if needed by the server
-    // For now, we just proceed to the player
-    setVideoUrl(finalUrl);
-    setShowQualitySelector(false);
+    // Open in new tab as requested
+    window.open(finalUrl, '_blank');
 
     // Start XP tracking
     startTracking();
+
+    // Optional: Keep the user on this page or go back
+    // router.back();
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center font-mono text-[#00FF00]">
+        <div className="text-2xl animate-pulse mb-4">INITIALIZING_DECRYPTION...</div>
+        <div className="w-64 bg-gray-900 h-2 rounded-full overflow-hidden border border-[#00FF00]/30">
+          <div className="bg-[#00FF00] h-full animate-[loading_2s_ease-in-out_infinite]" style={{ width: '40%' }}></div>
+        </div>
+        <style jsx>{`
+          @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(250%); }
+          }
+        `}</style>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-center">
-        <div className="text-6xl mb-4">❌</div>
-        <h2 className="text-white text-xl font-bold mb-2">Error</h2>
-        <p className="text-gray-400 mb-6">{error}</p>
-        <button onClick={() => router.back()} className="bg-white text-black px-6 py-2 rounded-lg font-bold">Go Back</button>
-      </div>
-    );
-  }
-
-  // Quality Selection UI (Matching the screenshot)
-  if (showQualitySelector) {
-    return (
-      <div className="min-h-screen bg-black text-white p-6 md:p-12 flex flex-col">
-        {/* Back Button */}
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 text-center font-mono text-red-500">
+        <div className="text-6xl mb-4">⚠️</div>
+        <h2 className="text-2xl font-bold mb-2">ACCESS_DENIED</h2>
+        <p className="text-red-400 mb-6 border border-red-500/30 p-4 bg-red-900/10">{error}</p>
         <button
           onClick={() => router.back()}
-          className="flex items-center text-gray-400 hover:text-white transition mb-8 w-fit"
+          className="bg-red-600 text-white px-8 py-2 rounded border border-red-400 hover:bg-red-700 transition"
         >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back
+          TERMINATE_SESSION
         </button>
-
-        {/* Video Info */}
-        <div className="mb-10">
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">
-            {videoInfo?.title}
-          </h1>
-          <p className="text-gray-500 text-sm">
-            Duration: {videoInfo?.duration}
-          </p>
-        </div>
-
-        {/* Quality Options */}
-        <div className="max-w-2xl">
-          <h2 className="text-xl font-semibold mb-6">Select Quality</h2>
-
-          <div className="space-y-4">
-            {['720p', '480p', '360p', '240p'].map((quality) => (
-              <button
-                key={quality}
-                onClick={() => handleQualitySelect(quality)}
-                className="w-full flex items-center justify-between p-4 rounded-xl border border-gray-800 hover:bg-white/5 transition group"
-              >
-                <div className="flex items-center">
-                  <div className="w-10 h-10 rounded-full bg-gray-900 flex items-center justify-center mr-4 group-hover:bg-white/10 transition">
-                    <svg className="w-5 h-5 text-gray-400 group-hover:text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
-                    </svg>
-                  </div>
-                  <span className="text-lg font-medium">{quality}</span>
-                </div>
-                <svg className="w-5 h-5 text-gray-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     );
   }
 
-  // Actual Video Player UI
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between border-b border-gray-900">
-        <button
-          onClick={() => setShowQualitySelector(true)}
-          className="text-white flex items-center"
-        >
-          <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          {selectedQuality}
-        </button>
-        <div className="text-center flex-1 mx-4 truncate">
-          <p className="text-white text-sm font-medium truncate">{videoInfo?.title}</p>
+    <div className="min-h-screen bg-black text-[#00FF00] p-6 md:p-12 flex flex-col font-mono relative overflow-hidden">
+      {/* Background Grid Effect */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'linear-gradient(#00FF00 1px, transparent 1px), linear-gradient(90deg, #00FF00 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+
+      {/* Back Button */}
+      <button
+        onClick={() => router.back()}
+        className="flex items-center text-[#00FF00]/70 hover:text-[#00FF00] transition mb-8 w-fit border border-[#00FF00]/30 px-4 py-1 hover:bg-[#00FF00]/10"
+      >
+        <span className="mr-2">{'<'}</span>
+        RETURN_TO_BASE
+      </button>
+
+      {/* Video Info Container */}
+      <div className="mb-10 border-l-4 border-[#00FF00] pl-6 py-2 bg-[#00FF00]/5">
+        <h1 className="text-2xl md:text-4xl font-bold mb-2 uppercase tracking-tighter">
+          TARGET: {videoInfo?.title}
+        </h1>
+        <div className="flex gap-4 text-xs">
+          <p className="text-[#00FF00]/50">
+            [DURATION: {videoInfo?.duration}]
+          </p>
+          <p className="text-[#00FF00]/50">
+            [STATUS: READY_TO_EXECUTE]
+          </p>
         </div>
-        <button onClick={() => router.back()} className="text-gray-400 hover:text-white">Close</button>
       </div>
 
-      {/* Video / Iframe */}
-      <div className="flex-1 relative">
-        <iframe
-          src={videoUrl}
-          className="absolute inset-0 w-full h-full border-0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
+      {/* Quality Selection UI */}
+      <div className="max-w-2xl relative z-10">
+        <h2 className="text-xl font-bold mb-6 flex items-center">
+          <span className="animate-pulse mr-2">_</span>
+          SELECT_STREAMS_QUALITY
+        </h2>
 
-        {/* XP Tracking Overlay */}
-        {currentUser && isTracking && (
-          <div className="absolute top-4 right-4 bg-black/80 backdrop-blur-sm p-3 rounded-lg border border-white/10 pointer-events-none">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">⭐</span>
-              <div>
-                <p className="text-[10px] text-gray-400 uppercase font-bold">XP Earned</p>
-                <p className="text-sm font-bold text-white">+{xpEarned} XP</p>
+        <div className="space-y-4">
+          {['720p', '480p', '360p', '240p'].map((quality) => (
+            <button
+              key={quality}
+              onClick={() => handleQualitySelect(quality)}
+              className="w-full flex items-center justify-between p-4 bg-[#111] border border-[#00FF00]/20 hover:border-[#00FF00] hover:bg-[#00FF00]/10 transition-all group rounded-xl"
+            >
+              <div className="flex items-center">
+                <div className="w-12 h-12 rounded-full border border-[#00FF00]/30 flex items-center justify-center mr-6 group-hover:border-[#00FF00] group-hover:bg-[#00FF00]/10 transition">
+                  <svg className="w-6 h-6 text-[#00FF00]" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
+                  </svg>
+                </div>
+                <span className="text-xl font-bold tracking-widest">{quality}</span>
               </div>
-            </div>
-            <div className="mt-2 w-32 bg-gray-800 rounded-full h-1">
-              <div className="bg-yellow-500 h-1 rounded-full transition-all duration-1000" style={{ width: `${progress}%` }} />
-            </div>
-            <p className="text-[9px] text-gray-500 mt-1 text-center">Next XP in {Math.floor(nextXpIn / 60)}:{(nextXpIn % 60).toString().padStart(2, '0')}</p>
-          </div>
-        )}
+              <div className="text-[#00FF00]/50 group-hover:text-[#00FF00]">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* Hacker Footer */}
+      <div className="mt-auto pt-12 text-[10px] text-[#00FF00]/30 flex justify-between">
+        <div>CONNECTION: SECURE_SSL_AES256</div>
+        <div>SERVER_IP: 192.168.0.101</div>
+        <div>SESSION_ID: {Math.random().toString(36).substring(7).toUpperCase()}</div>
+      </div>
+
+      {/* XP Tracking Status if active */}
+      {isTracking && (
+        <div className="fixed top-4 right-4 bg-black border border-[#00FF00] p-4 font-mono text-[10px] shadow-[0_0_15px_rgba(0,255,0,0.2)]">
+          <div className="text-[#00FF00] mb-1">XP_HARVEST_ACTIVE</div>
+          <div className="w-32 bg-gray-900 h-1 rounded-full">
+            <div className="bg-[#00FF00] h-full" style={{ width: '60%' }}></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

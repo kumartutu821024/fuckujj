@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-light text-dark font-sans;
+    @apply bg-black text-[#00FF00] font-mono;
   }
 }
 

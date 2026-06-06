@@ -1,46 +1,48 @@
 import React from 'react';
 
-// Exact replica of screenshot course cards
 const CourseCard = ({ course, onClick }) => {
   return (
     <div 
-      className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+      className="bg-black border border-[#00FF00]/20 hover:border-[#00FF00] transition-all cursor-pointer group font-mono overflow-hidden"
       onClick={onClick}
     >
-      {/* Thumbnail - Full width top */}
-      <div className="w-full h-48 bg-gray-200 overflow-hidden">
+      {/* Thumbnail */}
+      <div className="w-full h-48 bg-gray-900 overflow-hidden relative grayscale group-hover:grayscale-0 transition-all duration-500">
+        <div className="absolute inset-0 bg-[#00FF00]/10 z-10 group-hover:bg-transparent"></div>
         {course.course_thumbnail || course.thumbnail ? (
           <img 
             src={course.course_thumbnail || course.thumbnail}
             alt={course.course_name || course.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
             onError={(e) => {
               e.target.style.display = 'none';
-              e.target.parentElement.innerHTML = '<div class="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-2xl font-bold">COURSE</div>';
+              e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-[#00FF00] text-sm font-bold">[ENCRYPTED_IMG]</div>';
             }}
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-2xl font-bold">
-            COURSE
+          <div className="w-full h-full flex items-center justify-center text-[#00FF00] text-sm font-bold">
+            [DATA_BLOCK]
           </div>
         )}
+        {/* Hacker badge */}
+        <div className="absolute top-2 right-2 bg-black/80 border border-[#00FF00] px-2 py-0.5 text-[8px] text-[#00FF00] z-20">
+          NODE_{course.id?.toString().substring(0,4)}
+        </div>
       </div>
 
       {/* Content */}
-      <div className="p-4">
-        {/* Course Title */}
-        <h3 className="text-sm font-medium text-gray-900 mb-2 line-clamp-2 min-h-[40px]">
+      <div className="p-4 border-t border-[#00FF00]/20">
+        <h3 className="text-xs font-bold text-[#00FF00] mb-3 line-clamp-2 min-h-[32px] uppercase tracking-widest">
           {course.course_name || course.name}
         </h3>
 
-        {/* Price */}
-        <p className="text-sm font-semibold text-gray-900 mb-3">
-          Free
-        </p>
+        <div className="flex justify-between items-center mb-4 text-[10px]">
+          <span className="text-[#00FF00]/60">VAL: FREE</span>
+          <span className="text-[#00FF00]/60">SRC: PW_SERVER</span>
+        </div>
 
-        {/* View Content Button - Black, Full Width */}
-        <button className="w-full bg-black hover:bg-gray-900 text-white text-sm font-medium py-2.5 px-4 rounded transition-colors">
-          View Content
+        <button className="w-full bg-transparent border border-[#00FF00] text-[#00FF00] hover:bg-[#00FF00] hover:text-black text-[10px] font-bold py-2 px-4 transition-all uppercase">
+          INITIATE_DECRYPTION
         </button>
       </div>
     </div>
