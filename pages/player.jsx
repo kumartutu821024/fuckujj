@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { getVideoDetails, buildVideoUrl } from '../src/services/apiService';
+import { getVideoDetails, buildVideoUrl, appendQueryParam } from '../src/services/apiService';
 import { useVideoWatchTracker } from '../src/hooks/useVideoWatchTracker';
 import { onAuthChange } from '../src/services/authService';
 
@@ -12,6 +12,7 @@ const PlayerPage = () => {
   const [error, setError] = useState(null);
   const [videoInfo, setVideoInfo] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [executing, setExecuting] = useState(false);
 
   // XP tracking
   const {
@@ -61,23 +62,44 @@ const PlayerPage = () => {
     }
   };
 
-  const handleQualitySelect = (quality) => {
-    if (!videoInfo) return;
+  const handleQualitySelect = async (quality) => {
+    if (!videoInfo || executing) return;
 
-    // Build final URL with token
-    let finalUrl = videoInfo.playerUrl;
-    if (videoInfo.token) {
-      finalUrl = buildVideoUrl(videoInfo.playerUrl, videoInfo.token);
+    setExecuting(true);
+    try {
+      // 1. Fetch specific quality from API
+      console.log(`📡 Requesting stream for quality: ${quality}...`);
+      const response = await getVideoDetails(video_id, course_id, quality);
+      const data = response.data || response;
+
+      // 2. Extract specific quality URL and token
+      let playerUrl = data.video_player_url || data.player_url || data.url || videoInfo.playerUrl;
+      let token = data.video_player_token || data.token || videoInfo.token;
+
+      // 3. Build final encrypted URL
+      let finalUrl = buildVideoUrl(playerUrl, token);
+
+      // 4. Force quality parameter in player URL as backup
+      const qVal = quality.replace('p', '');
+      finalUrl = appendQueryParam(finalUrl, 'quality', qVal);
+
+      console.log(`✅ STREAM_READY: ${quality} link generated.`);
+
+      // 5. Open in new tab
+      window.open(finalUrl, '_blank');
+
+      // 6. Start XP tracking in background
+      startTracking();
+
+    } catch (e) {
+      console.error('❌ EXECUTION_FAILED:', e);
+      // Fallback to default URL if specific quality fetch fails
+      let fallbackUrl = buildVideoUrl(videoInfo.playerUrl, videoInfo.token);
+      fallbackUrl = appendQueryParam(fallbackUrl, 'quality', quality.replace('p', ''));
+      window.open(fallbackUrl, '_blank');
+    } finally {
+      setExecuting(false);
     }
-
-    // Open in new tab as requested
-    window.open(finalUrl, '_blank');
-
-    // Start XP tracking
-    startTracking();
-
-    // Optional: Keep the user on this page or go back
-    // router.back();
   };
 
   if (loading) {
@@ -137,7 +159,7 @@ const PlayerPage = () => {
             [DURATION: {videoInfo?.duration}]
           </p>
           <p className="text-[#00FF00]/50">
-            [STATUS: READY_TO_EXECUTE]
+            [STATUS: {executing ? 'EXECUTING_STREAMS...' : 'READY_TO_EXECUTE'}]
           </p>
         </div>
       </div>
@@ -154,7 +176,8 @@ const PlayerPage = () => {
             <button
               key={quality}
               onClick={() => handleQualitySelect(quality)}
-              className="w-full flex items-center justify-between p-4 bg-[#111] border border-[#00FF00]/20 hover:border-[#00FF00] hover:bg-[#00FF00]/10 transition-all group rounded-xl"
+              disabled={executing}
+              className="w-full flex items-center justify-between p-4 bg-[#111] border border-[#00FF00]/20 hover:border-[#00FF00] hover:bg-[#00FF00]/10 transition-all group rounded-xl disabled:opacity-50"
             >
               <div className="flex items-center">
                 <div className="w-12 h-12 rounded-full border border-[#00FF00]/30 flex items-center justify-center mr-6 group-hover:border-[#00FF00] group-hover:bg-[#00FF00]/10 transition">
@@ -165,9 +188,13 @@ const PlayerPage = () => {
                 <span className="text-xl font-bold tracking-widest">{quality}</span>
               </div>
               <div className="text-[#00FF00]/50 group-hover:text-[#00FF00]">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                {executing ? (
+                  <div className="w-6 h-6 border-2 border-[#00FF00] border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
               </div>
             </button>
           ))}
